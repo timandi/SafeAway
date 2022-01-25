@@ -34,8 +34,10 @@ const char *host = MDNS_HOST;
 const char *bot_token = BOT_TOKEN;
 const char *chat_id = CHAT_ID;
 
+// Configure the server, set the time zone 
+// and daylight saving time correction
 const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = -2;
+const long gmtOffset_sec = -7200;
 const int daylightOffset_sec = 3600;
 
 // Define output pins
@@ -63,14 +65,13 @@ void handleNewMessages(int numNewMessages) {
     for (int i = 0; i < numNewMessages; i++) {
         // Store message metadata for the scope of this parsing,
         // print the text output for debug and then normalize to lowercase
-        int message_id = bot.messages[i].message_id;
+        //int message_id = bot.messages[i].message_id;
         String chat_id = String(bot.messages[i].chat_id);
         String text = bot.messages[i].text;
         String type = bot.messages[i].type;
         String from_name = bot.messages[i].from_name;
         bool has_document = bot.messages[i].hasDocument;
         Serial.println(text);
-        text.toLowerCase();
 
         // Assert a valid field in case it's empty.
         // ToDo: this will later use to prevent outside requests :)
@@ -121,16 +122,16 @@ void handleNewMessages(int numNewMessages) {
                     "Poti selecta una din urmatoarele optiuni:\n\n"
                     "/vacanta : Acest meniu permite atat inchiderea de siguranta a alimentarii cu gaz, cat si setarea modului 'PLECAT', care simuleaza o prezenta umana in casa, prin pornirea si oprirea unei surse de lumina la un anumit interval de timp presetat de utilizator.  \n"
                     "/status  : Vezi starea curenta a intrerupatoarelor. \n"
-                    "/lumina  : Acest :bulb: meniu ofera o interfata pentru controlul luminii. \n"
+                    "/lumina  : Acest bulb meniu ofera o interfata pentru controlul luminii. \n"
                     "/gaz     : Controlul manual al electrovalvei de siguranta. \n"
                     "/setari  : Configurarea aplicatiei. \n\n"
                     "Poti accesa din nou acest meniu prin comanda /start, sau simplu prin a scrie 'help' sau 'salut'. \n\n";
 
                 String keyboardJson =
                     "["
-                    "[\":bulb: LUMINA :sparkles:\", \":fuelpump: GAZ :hotsprings:\"],"
-                    "[\":ok_hand: STATUS :question:\", \":airplane: VACANTA :boat:\", \":wrench: SETARI :nut_and_bolt: \"],"
-                    "[\":house_with_garden: PAGINA PRINCIPALA :house_with_garden:\"]"
+                    "[\"/lumina\", \"/gaz\"],"
+                    "[\"/status\", \"/vacanta\", \"/setari\"],"
+                    "[\"/start\"]"
                     "]";
 
                 bot.sendMessageWithReplyKeyboard(chat_id, welcomeMsg, "Markdown", keyboardJson, true);
@@ -146,8 +147,8 @@ void handleNewMessages(int numNewMessages) {
                 }
                 String keyboardJson =
                     "["
-                    "[{ \"text\" : \"OFF\", \"callback_data\" : \"/lightOff\"}],"
-                    "[{ \"text\" : \"ON\" , \"callback_data\" : \"/lightOn\"}]"
+                    "[{ \"text\" : \"OFF\", \"callback_data\" : \"/light_off\"}],"
+                    "[{ \"text\" : \"ON\" , \"callback_data\" : \"/light_on\"}]"
                     "]";
                 bot.sendMessageWithInlineKeyboard(chat_id, lightMsg, "Markdown", keyboardJson);
             }
@@ -164,8 +165,8 @@ void handleNewMessages(int numNewMessages) {
                 }
                 String keyboardJson =
                     "["
-                    "[{ \"text\" : \"OFF\", \"callback_data\" : \"/gasOff\"}],"
-                    "[{ \"text\" : \"ON\" , \"callback_data\" : \"/gasOn\"}]"
+                    "[{ \"text\" : \"OFF\", \"callback_data\" : \"/gas_off\"}],"
+                    "[{ \"text\" : \"ON\" , \"callback_data\" : \"/gas_on\"}]"
                     "]";
                 bot.sendMessageWithInlineKeyboard(chat_id, gasMsg, "Markdown", keyboardJson);
             }
@@ -173,22 +174,27 @@ void handleNewMessages(int numNewMessages) {
         }
         //----------------------------------------------------------------
         //- Handle the callback_queries coming from the buttons
-        else if (type == "callback_query") {
-            if (text == "/lightON") {
+        //----------------------------------------------------------------
+        if (type == "callback_query") {
+            if (text == "/light_on") {
                 lightState = true;
-                digitalWrite(LIGHT_PIN, HIGH);
+                digitalWrite(LIGHT_PIN, LOW);
+                Serial.println("Turned the light on");
             }
-            if (text == "/lightOff") {
+            if (text == "/light_off") {
                 lightState = false;
                 digitalWrite(LIGHT_PIN, LOW);
+                Serial.println("Turned the light off");
             }
-            if (text == "/gasON") {
+            if (text == "/gas_on") {
                 gasState = true;
                 digitalWrite(GAS_PIN, HIGH);
+                Serial.println("Turned the gas on");
             }
-            if (text == "/gasOff") {
+            if (text == "/gas_off") {
                 gasState = false;
                 digitalWrite(GAS_PIN, LOW);
+                Serial.println("Turned the gas off");
             }
         }
     }
@@ -234,11 +240,11 @@ void printLocalTime() {
 // Main setup function, it run only once at wake-up
 //====================================================================
 void setup() {
-    // Initialize the pins as outputs and set them to null for now.
+    // Initialize the pins as outputs and pull them high
     pinMode(LIGHT_PIN, OUTPUT);
     pinMode(GAS_PIN, OUTPUT);
-    digitalWrite(LIGHT_PIN, LOW);
-    digitalWrite(GAS_PIN, LOW);
+    digitalWrite(LIGHT_PIN, HIGH);
+    digitalWrite(GAS_PIN, HIGH);
 
     // Start serial connection for debugging
     Serial.begin(115200);
